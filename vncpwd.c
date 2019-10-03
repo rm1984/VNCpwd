@@ -64,6 +64,8 @@ int main(int argc, char *argv[])
 
   setbuf(stdout, NULL);
 
+  if (argc < 2)
+    {
   fputs("\n"
         "*VNC password decoder "VER "\n"
         "by Luigi Auriemma\n"
@@ -71,8 +73,6 @@ int main(int argc, char *argv[])
         "web:    aluigi.org\n"
         "\n", stdout);
 
-  if (argc < 2)
-    {
       printf("\n"
              "Usage: %s <file.VNC/password>\n"
              "\n"
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 
       if (len < 8)
         {
-          printf("- your input password seems in hex format (or shorter than 8 chars)\n");
+          //printf("- your input password seems in hex format (or shorter than 8 chars)\n");
           p = malloc(argc);
           for (i = 1; i < argc; i++)
             {
@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
         }
       else if (len > 8)
         {
-          printf("- your input password seems in hex format (or longer than 8 chars)\n");
+          //printf("- your input password seems in hex format (or longer than 8 chars)\n");
           for (i = 0; ; i++)
             {
               if (sscanf(arg + (i * 2), "%02x", &n) != 1)
@@ -127,7 +127,8 @@ int main(int argc, char *argv[])
         }
 
       vncpwd(p, len);
-      printf("\n  Password:   %.*s\n", len, p);
+      //printf("\n  Password:   %.*s\n", len, p);
+      printf("%.*s\n", len, p);
       goto quit;
     }
 
@@ -169,8 +170,8 @@ int main(int argc, char *argv[])
   fclose(fd);
 
 quit:
-  printf("\n  Press RETURN to exit\n");
-  fgetc(stdin);
+//  printf("\n  Press RETURN to exit\n");
+//  fgetc(stdin);
   return(0);
 }
 
