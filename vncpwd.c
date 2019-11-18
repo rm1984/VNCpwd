@@ -19,351 +19,276 @@
 
  */
 
+#include "d3des.h" // all the stuff from the VNC public source
+#include <ctype.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <ctype.h>
-#include "d3des.h"      // all the stuff from the VNC public source
 
 #ifdef WIN32
-    #include <windows.h>
+#include <windows.h>
 #else
-    #define stricmp strcasecmp
-    #define stristr strcasestr
+#define stricmp strcasecmp
+#define stristr strcasestr
 #endif
 
-
-
-#define VER     "0.2.1"
-#define BUFFSZ  4096
+#define VER "0.2.1"
+#define BUFFSZ 4096
 #define KEYPATH "Software\\ORL"
 
-
 #ifdef WIN32
-int regkey(HKEY hKey, LPCTSTR lpSubKey, LPTSTR lpValueName, uint8_t *buff, int len);
+int regkey(HKEY hKey, LPCTSTR lpSubKey, LPTSTR lpValueName, uint8_t *buff,
+           int len);
 int enum_key(HKEY hkey, uint8_t *reg_path);
 int enum_value(HKEY hkey, uint8_t *reg_path);
 #endif
 void vncpwd(uint8_t *pwd, int bytelen);
 char *stristr(const char *String, const char *Pattern);
 
-
-
-int main(int argc, char *argv[])
-{
-  FILE    *fd;
-  int i,
-      n,
-      len;
-  uint8_t buff[BUFFSZ + 1],
-          *arg,
-          *p,
-          *l;
-
+int main(int argc, char *argv[]) {
+  FILE *fd;
+  int i, n, len;
+  uint8_t buff[BUFFSZ + 1], *arg, *p, *l;
 
   setbuf(stdout, NULL);
 
-  if (argc < 2)
-    {
-  fputs("\n"
-        "*VNC password decoder "VER "\n"
-        "by Luigi Auriemma\n"
-        "e-mail: aluigi@autistici.org\n"
-        "web:    aluigi.org\n"
-        "\n", stdout);
+  if (argc < 2) {
+    fputs("\n"
+          "*VNC password decoder " VER "\n"
+          "by Luigi Auriemma\n"
+          "e-mail: aluigi@autistici.org\n"
+          "web:    aluigi.org\n"
+          "\n",
+          stdout);
 
-      printf("\n"
-             "Usage: %s <file.VNC/password>\n"
-             "\n"
-             "Works with any VNC application which uses the original VNC encryption, like\n"
-             "RealVNC, TightVNC, Ultr@VNC and so on\n"
-             "You can pass both the file.vnc or directly an encrypted password (hex too).\n"
+    printf("\n"
+           "Usage: %s <file.VNC/password>\n"
+           "\n"
+           "Works with any VNC application which uses the original VNC "
+           "encryption, like\n"
+           "RealVNC, TightVNC, Ultr@VNC and so on\n"
+           "You can pass both the file.vnc or directly an encrypted password "
+           "(hex too).\n"
 #ifdef WIN32
-             "Passwords in the registry key "KEYPATH " are automatically shown below:\n"
+           "Passwords in the registry key " KEYPATH
+           " are automatically shown below:\n"
 #endif
-             "\n", argv[0]);
+           "\n",
+           argv[0]);
 #ifdef WIN32
-      enum_key(HKEY_CURRENT_USER, KEYPATH);
-      enum_key(HKEY_USERS, KEYPATH);
-      enum_key(HKEY_LOCAL_MACHINE, KEYPATH);
+    enum_key(HKEY_CURRENT_USER, KEYPATH);
+    enum_key(HKEY_USERS, KEYPATH);
+    enum_key(HKEY_LOCAL_MACHINE, KEYPATH);
 #endif
-      goto quit;
-    }
+    goto quit;
+  }
 
   arg = argv[1];
 
   fd = fopen(arg, "rb");
-  if (!fd)
-    {
-      p = arg;
-      len = strlen(p);
+  if (!fd) {
+    p = arg;
+    len = strlen(p);
 
-      if (len < 8)
-        {
-          //printf("- your input password seems in hex format (or shorter than 8 chars)\n");
-          p = malloc(argc);
-          for (i = 1; i < argc; i++)
-            {
-              sscanf(argv[i], "%x", &n);
-              p[i - 1] = n;
-            }
-          len = i - 1;
-        }
-      else if (len > 8)
-        {
-          //printf("- your input password seems in hex format (or longer than 8 chars)\n");
-          for (i = 0; ; i++)
-            {
-              if (sscanf(arg + (i * 2), "%02x", &n) != 1)
-                break;
-              p[i] = n;
-            }
-          len = i;
-        }
-      else
-        {
-          printf("- your input password seems in raw format\n");
-        }
-
-      vncpwd(p, len);
-      //printf("\n  Password:   %.*s\n", len, p);
-      printf("%.*s\n", len, p);
-      goto quit;
+    if (len < 8) {
+      // printf("- your input password seems in hex format (or shorter than 8
+      // chars)\n");
+      p = malloc(argc);
+      for (i = 1; i < argc; i++) {
+        sscanf(argv[i], "%x", &n);
+        p[i - 1] = n;
+      }
+      len = i - 1;
+    } else if (len > 8) {
+      // printf("- your input password seems in hex format (or longer than 8
+      // chars)\n");
+      for (i = 0;; i++) {
+        if (sscanf(arg + (i * 2), "%02x", &n) != 1)
+          break;
+        p[i] = n;
+      }
+      len = i;
+    } else {
+      printf("- your input password seems in raw format\n");
     }
 
-  while (fgets(buff, sizeof(buff), fd))
-    {
-      for (l = buff; *l && (*l != '\r') && (*l != '\n'); l++)
-        ;
-      *l = 0;
+    vncpwd(p, len);
+    // printf("\n  Password:   %.*s\n", len, p);
+    printf("%.*s\n", len, p);
+    goto quit;
+  }
 
-      l = strchr(buff, '=');
-      if (!l)
-        continue;
-      *l = 0;
+  while (fgets(buff, sizeof(buff), fd)) {
+    for (l = buff; *l && (*l != '\r') && (*l != '\n'); l++)
+      ;
+    *l = 0;
 
-      p = buff;
-      while (*p && (*p > ' '))
-        p++;                                // skip possible spaces
-      *p = 0;
+    l = strchr(buff, '=');
+    if (!l)
+      continue;
+    *l = 0;
 
-      p = l + 1;
-      while (*p && (*p <= ' '))
-        p++;                                // skip possible spaces
+    p = buff;
+    while (*p && (*p > ' '))
+      p++; // skip possible spaces
+    *p = 0;
 
-      if (!stricmp(buff, "host"))
-        {
-          printf("  Hostname    %s\n", p);
-        }
-      else if (!stricmp(buff, "port"))
-        {
-          printf("  Port        %s\n", p);
-        }
-      else if (stristr(buff, "password") || stristr(buff, "passwd") || stristr(buff, "pwd"))
-        {
-          vncpwd(p, -1);
-          printf("  Password:   %s\n", p);
-        }
+    p = l + 1;
+    while (*p && (*p <= ' '))
+      p++; // skip possible spaces
+
+    if (!stricmp(buff, "host")) {
+      printf("  Hostname    %s\n", p);
+    } else if (!stricmp(buff, "port")) {
+      printf("  Port        %s\n", p);
+    } else if (stristr(buff, "password") || stristr(buff, "passwd") ||
+               stristr(buff, "pwd")) {
+      vncpwd(p, -1);
+      printf("  Password:   %s\n", p);
     }
+  }
 
   fclose(fd);
 
 quit:
-//  printf("\n  Press RETURN to exit\n");
-//  fgetc(stdin);
-  return(0);
+  //  printf("\n  Press RETURN to exit\n");
+  //  fgetc(stdin);
+  return (0);
 }
-
-
 
 #ifdef WIN32
 
-int regkey(HKEY hKey, LPCTSTR lpSubKey, LPTSTR lpValueName, uint8_t *buff, int len)
-{
+int regkey(HKEY hKey, LPCTSTR lpSubKey, LPTSTR lpValueName, uint8_t *buff,
+           int len) {
   HKEY key;
 
   buff[0] = 0;
 
-  if (RegOpenKeyEx(hKey, lpSubKey, 0, KEY_READ, &key) != ERROR_SUCCESS)
-    {
-      return(-1);
-    }
-  if (RegQueryValueEx(key, lpValueName, NULL, NULL, buff, (void *)&len) != ERROR_SUCCESS)
-    {
-      RegCloseKey(key);
-      return(-1);
-    }
+  if (RegOpenKeyEx(hKey, lpSubKey, 0, KEY_READ, &key) != ERROR_SUCCESS) {
+    return (-1);
+  }
+  if (RegQueryValueEx(key, lpValueName, NULL, NULL, buff, (void *)&len) !=
+      ERROR_SUCCESS) {
+    RegCloseKey(key);
+    return (-1);
+  }
   RegCloseKey(key);
 
-
   /* CODE ADDED FOR VNCPWD */
-  if (stristr(lpValueName, "pass") && (len >= 8))
-    {
-      vncpwd(buff, len);
-      printf("%-*s   %.*s\n",
-             40 - printf("  %s", lpSubKey), lpValueName,
-             len, buff);
-    }
+  if (stristr(lpValueName, "pass") && (len >= 8)) {
+    vncpwd(buff, len);
+    printf("%-*s   %.*s\n", 40 - printf("  %s", lpSubKey), lpValueName, len,
+           buff);
+  }
   /* END */
 
-  return(0);
+  return (0);
 }
 
-
-
-int enum_key(HKEY hkey, uint8_t *reg_path)
-{
+int enum_key(HKEY hkey, uint8_t *reg_path) {
   HKEY key;
-  uint8_t buff[BUFFSZ + 1],
-          *p;
-  int len,
-      plen,
-      k = 0;
+  uint8_t buff[BUFFSZ + 1], *p;
+  int len, plen, k = 0;
 
-  if (RegOpenKeyEx(hkey, reg_path, 0, KEY_READ, &key))
-    {
-      return(-1);
-    }
+  if (RegOpenKeyEx(hkey, reg_path, 0, KEY_READ, &key)) {
+    return (-1);
+  }
 
-  plen = snprintf(
-    buff,
-    BUFFSZ,
-    "%s\\",
-    reg_path);
-  if ((plen < 0) || (plen >= BUFFSZ))
-    {
-      return(-1);
-    }
+  plen = snprintf(buff, BUFFSZ, "%s\\", reg_path);
+  if ((plen < 0) || (plen >= BUFFSZ)) {
+    return (-1);
+  }
 
   enum_value(hkey, buff);
 
   p = buff + plen;
 
-  for (;;)
-    {
-      len = BUFFSZ - plen;
-      if (RegEnumKeyEx(
-            key,
-            k++,
-            p,
-            (void *)&len,
-            NULL,
-            NULL,
-            NULL,
-            NULL))
-        break;
+  for (;;) {
+    len = BUFFSZ - plen;
+    if (RegEnumKeyEx(key, k++, p, (void *)&len, NULL, NULL, NULL, NULL))
+      break;
 
-      enum_key(hkey, buff);
-    }
+    enum_key(hkey, buff);
+  }
 
   RegCloseKey(key);
-  return(0);
+  return (0);
 }
 
-
-
-int enum_value(HKEY hkey, uint8_t *reg_path)
-{
+int enum_value(HKEY hkey, uint8_t *reg_path) {
   HKEY key;
-  uint8_t buff[BUFFSZ + 1],
-          value[BUFFSZ + 1];
-  int len,
-      k = 0;
+  uint8_t buff[BUFFSZ + 1], value[BUFFSZ + 1];
+  int len, k = 0;
 
-  if (RegOpenKeyEx(hkey, reg_path, 0, KEY_READ, &key))
-    {
-      return(-1);
-    }
+  if (RegOpenKeyEx(hkey, reg_path, 0, KEY_READ, &key)) {
+    return (-1);
+  }
 
-  for (;;)
-    {
-      len = BUFFSZ;
-      if (RegEnumValue(
-            key,
-            k++,
-            buff,
-            (void *)&len,
-            NULL,
-            NULL,
-            NULL,
-            NULL))
-        break;
+  for (;;) {
+    len = BUFFSZ;
+    if (RegEnumValue(key, k++, buff, (void *)&len, NULL, NULL, NULL, NULL))
+      break;
 
-      regkey(hkey, reg_path, buff, value, sizeof(value));
-    }
+    regkey(hkey, reg_path, buff, value, sizeof(value));
+  }
 
   RegCloseKey(key);
-  return(0);
+  return (0);
 }
 
 #endif
 
-
-
-void vncpwd(uint8_t *pwd, int bytelen)       // if bytelen is -1 it's a hex string
+void vncpwd(uint8_t *pwd, int bytelen) // if bytelen is -1 it's a hex string
 {
-  int len,
-      tmp;
-  uint8_t fixedkey[8] = { 23, 82, 107, 6, 35, 78, 88, 7 },
-          *p,
-          *o;
+  int len, tmp;
+  uint8_t fixedkey[8] = {23, 82, 107, 6, 35, 78, 88, 7}, *p, *o;
 
-  if (bytelen >= 0)
-    {
-      o = pwd + bytelen;
+  if (bytelen >= 0) {
+    o = pwd + bytelen;
+  } else {
+    for (p = o = pwd; *p; p += 2, o++) {
+      sscanf(p, "%02x", &tmp);
+      *o = tmp;
     }
-  else
-    {
-      for (p = o = pwd; *p; p += 2, o++)
-        {
-          sscanf(p, "%02x", &tmp);
-          *o = tmp;
-        }
-    }
+  }
 
   len = o - pwd;
   tmp = len % 8;
   len /= 8;
-  //NO, ultravnc adds an additional byte at the end. if(tmp) len++;
+  // NO, ultravnc adds an additional byte at the end. if(tmp) len++;
 
   deskey(fixedkey, DE1);
-  for (p = pwd; len--; p += 8)      // that's wrong since des supports only 8 bytes
-    {
-      des(p, p);                    // but you know me... I'm crazy
-    }
-  *p = 0;   // necessary for useless unaligned bytes
-  *o = 0;   // just in case
+  for (p = pwd; len--; p += 8) // that's wrong since des supports only 8 bytes
+  {
+    des(p, p); // but you know me... I'm crazy
+  }
+  *p = 0; // necessary for useless unaligned bytes
+  *o = 0; // just in case
 }
 
-
-
-char *stristr(const char *String, const char *Pattern)
-{
+char *stristr(const char *String, const char *Pattern) {
   char *pptr, *sptr, *start;
 
-  for (start = (char *)String; *start; start++)
-    {
-      /* find start of pattern in string */
-      for ( ; (*start && (toupper(*start) != toupper(*Pattern))); start++)
-        ;
-      if (!*start)
-        return 0;
+  for (start = (char *)String; *start; start++) {
+    /* find start of pattern in string */
+    for (; (*start && (toupper(*start) != toupper(*Pattern))); start++)
+      ;
+    if (!*start)
+      return 0;
 
-      pptr = (char *)Pattern;
-      sptr = (char *)start;
+    pptr = (char *)Pattern;
+    sptr = (char *)start;
 
-      while (toupper(*sptr) == toupper(*pptr))
-        {
-          sptr++;
-          pptr++;
+    while (toupper(*sptr) == toupper(*pptr)) {
+      sptr++;
+      pptr++;
 
-          /* if end of pattern then pattern was found */
+      /* if end of pattern then pattern was found */
 
-          if (!*pptr)
-            return(start);
-        }
+      if (!*pptr)
+        return (start);
     }
+  }
   return 0;
 }
-
